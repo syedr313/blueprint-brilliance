@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import AiTutor from "@/components/AiTutor";
 import { levels, moduleColors } from "@/data/levels";
+import { getGameComponent } from "@/games";
+import type { GameResult } from "@/games/types";
 import { ArrowLeft, Play, Gamepad2, BarChart3, Lock, Star, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 
 type Phase = "watch" | "play" | "review";
@@ -17,9 +19,17 @@ const LevelDetail = () => {
   const [phase, setPhase] = useState<Phase>("watch");
   const [videoProgress, setVideoProgress] = useState(0);
   const [gameComplete, setGameComplete] = useState(false);
-  const [score] = useState(85);
+  const [gameResult, setGameResult] = useState<GameResult | null>(null);
 
   const gameUnlocked = videoProgress >= 80;
+  const score = gameResult?.score ?? 0;
+
+  const GameComponent = getGameComponent(levelId);
+
+  const handleGameComplete = useCallback((result: GameResult) => {
+    setGameResult(result);
+    setGameComplete(true);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
@@ -114,7 +124,6 @@ const LevelDetail = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              {/* Video player placeholder */}
               <div className="aspect-video bg-foreground/5 rounded-2xl overflow-hidden mb-4 relative border border-border/50">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
@@ -133,7 +142,6 @@ const LevelDetail = () => {
                 </div>
               </div>
 
-              {/* Progress bar */}
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                   <motion.div
@@ -163,7 +171,6 @@ const LevelDetail = () => {
                 </motion.div>
               )}
 
-              {/* Notes section */}
               <div className="mt-6 bg-card rounded-2xl p-5 border border-border/50">
                 <h3 className="font-display text-foreground mb-2">📝 Lesson Notes</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
@@ -182,45 +189,28 @@ const LevelDetail = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              <div className="aspect-video bg-card rounded-2xl overflow-hidden border border-border/50 flex items-center justify-center relative">
-                <div className="absolute inset-0" style={{
-                  background: `linear-gradient(135deg, ${colors.from}08, ${colors.to}08)`,
-                }} />
-                {!gameComplete ? (
-                  <div className="text-center relative z-10">
-                    <Gamepad2 className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-                    <h3 className="font-display text-xl text-foreground mb-2">{level.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-                      The interactive game will load here. Complete it to earn stars and unlock the next level!
-                    </p>
-                    <button
-                      onClick={() => setGameComplete(true)}
-                      className="gradient-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold shadow-glow hover:shadow-elevated transition-all"
-                    >
-                      Simulate Completion
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center relative z-10">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", bounce: 0.5 }}
-                    >
-                      <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-success" />
-                    </motion.div>
-                    <h3 className="font-display text-xl text-foreground mb-2">Game Complete! 🎉</h3>
-                    <p className="text-muted-foreground mb-4">Score: {score}%</p>
-                    <button
-                      onClick={() => setPhase("review")}
-                      className="gradient-secondary text-secondary-foreground px-6 py-3 rounded-xl font-semibold shadow-soft hover:shadow-elevated transition-all inline-flex items-center gap-2"
-                    >
-                      <BarChart3 className="w-5 h-5" />
-                      View Results
-                    </button>
-                  </div>
-                )}
-              </div>
+              {!gameComplete ? (
+                <GameComponent levelId={levelId} onComplete={handleGameComplete} />
+              ) : (
+                <div className="bg-card rounded-2xl p-8 border border-border/50 text-center">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", bounce: 0.5 }}
+                  >
+                    <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-success" />
+                  </motion.div>
+                  <h3 className="font-display text-xl text-foreground mb-2">Game Complete! 🎉</h3>
+                  <p className="text-muted-foreground mb-4">Score: {score}%</p>
+                  <button
+                    onClick={() => setPhase("review")}
+                    className="gradient-secondary text-secondary-foreground px-6 py-3 rounded-xl font-semibold shadow-soft hover:shadow-elevated transition-all inline-flex items-center gap-2"
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                    View Results
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -232,7 +222,6 @@ const LevelDetail = () => {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-4"
             >
-              {/* Score circle */}
               <div className="bg-card rounded-2xl p-8 border border-border/50 shadow-card text-center">
                 <div className="relative w-32 h-32 mx-auto mb-4">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
@@ -256,24 +245,28 @@ const LevelDetail = () => {
                     <Star
                       key={s}
                       className={`w-7 h-7 ${
-                        s <= (score >= 90 ? 3 : score >= 80 ? 2 : 1)
+                        s <= (score >= 90 ? 3 : score >= 80 ? 2 : score >= 70 ? 1 : 0)
                           ? "text-accent fill-accent"
                           : "text-muted-foreground/20"
                       }`}
                     />
                   ))}
                 </div>
-                <p className="text-muted-foreground text-sm">Great job! You scored above 70% and can advance.</p>
+                {gameResult && (
+                  <p className="text-muted-foreground text-sm">
+                    {gameResult.correctAnswers} / {gameResult.totalQuestions} correct
+                    {score >= 70 ? " — You can advance! 🎉" : " — Try again to score 70%+"}
+                  </p>
+                )}
               </div>
 
-              {/* Skill breakdown */}
               <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-card">
                 <h3 className="font-display text-foreground mb-4">Skill Breakdown</h3>
                 {[
-                  { skill: "Vocabulary", score: 90 },
-                  { skill: "Pronunciation", score: 78 },
-                  { skill: "Grammar", score: 88 },
-                  { skill: "Comprehension", score: 82 },
+                  { skill: "Accuracy", score: Math.min(100, score + 5) },
+                  { skill: "Speed", score: Math.max(50, score - 8) },
+                  { skill: "Comprehension", score: Math.min(100, score + 2) },
+                  { skill: "Consistency", score: Math.max(40, score - 5) },
                 ].map((item) => (
                   <div key={item.skill} className="mb-3 last:mb-0">
                     <div className="flex justify-between text-sm mb-1">
@@ -293,29 +286,13 @@ const LevelDetail = () => {
                 ))}
               </div>
 
-              {/* Weak areas */}
-              <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-card">
-                <h3 className="font-display text-foreground mb-3">Areas to Improve</h3>
-                <div className="space-y-2">
-                  {[
-                    { word: "pronunciation", correct: "pro-nun-see-AY-shun" },
-                    { word: "rhythm", correct: "RIH-thum" },
-                  ].map((item) => (
-                    <div key={item.word} className="flex items-start gap-3 p-3 bg-destructive/5 rounded-xl">
-                      <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-                      <div>
-                        <span className="text-sm font-medium text-foreground">{item.word}</span>
-                        <p className="text-xs text-muted-foreground">Correct: {item.correct}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={() => { setGameComplete(false); setPhase("play"); }}
+                  onClick={() => {
+                    setGameComplete(false);
+                    setGameResult(null);
+                    setPhase("play");
+                  }}
                   className="flex-1 py-3 rounded-xl font-semibold text-sm bg-card border border-border/50 text-foreground hover:bg-muted transition-colors"
                 >
                   Replay Game
