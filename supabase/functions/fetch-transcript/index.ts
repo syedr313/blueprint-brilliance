@@ -24,52 +24,6 @@ function parseXmlCaptions(xml: string): string {
   return segments.join(" ");
 }
 
-async function tryInnertubeClient(videoId: string, clientName: string, clientVersion: string, extra: Record<string, unknown> = {}): Promise<{ title: string; transcript: string; } | null> {
-  try {
-    const res = await fetch(
-      "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0",
-        },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName,
-              clientVersion,
-              ...extra,
-            },
-          },
-          videoId,
-        }),
-      }
-    );
-    const data = await res.json();
-    const title = data?.videoDetails?.title || "";
-    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-    console.log(`[${clientName}] title: "${title}", tracks: ${tracks?.length || 0}`);
-
-    if (tracks?.length) {
-      const track =
-        tracks.find((t: any) => t.languageCode === "en") ||
-        tracks.find((t: any) => t.languageCode?.startsWith("en")) ||
-        tracks[0];
-      if (track?.baseUrl) {
-        const captionRes = await fetch(track.baseUrl);
-        const xml = await captionRes.text();
-        const transcript = parseXmlCaptions(xml);
-        if (transcript) return { title, transcript };
-      }
-    }
-    return title ? { title, transcript: "" } : null;
-  } catch (e) {
-    console.error(`[${clientName}] error:`, e);
-    return null;
-  }
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -85,69 +39,137 @@ serve(async (req) => {
       );
     }
 
-    let title = "";
-    let transcript = "";
-
-    // Try multiple innertube client types
-    const clients = [
-      { name: "WEB", version: "2.20240101.00.00", extra: { hl: "en" } },
-      { name: "ANDROID", version: "19.09.37", extra: { androidSdkVersion: 30, hl: "en" } },
-      { name: "IOS", version: "19.09.3", extra: { hl: "en" } },
-    ];
-
-    for (const c of clients) {
-      const result = await tryInnertubeClient(videoId, c.name, c.version, c.extra);
-      if (result) {
-        if (!title && result.title) title = result.title;
-        if (result.transcript) {
-          transcript = result.transcript;
-          break;
-        }
+    // Get title from oEmbed (always works, no auth needed)
+    let title = "YouTube Video";
+    try {
+      const oembedRes = await fetch(
+        `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
+      );
+      if (oembedRes.ok) {
+        const oembedData = await oembedRes.json();
+        title = oembedData.title || title;
       }
+    } catch (e) {
+      console.error("oEmbed failed:", e);
     }
 
-    // Fallback: scrape the watch page for embedded caption data
-    if (!transcript) {
+    let transcript = "";
+
+    // Method 1: Direct timedtext API (works for many videos with captions)
+    const langs = ["en", "en-US", "en-GB"];
+    for (const lang of langs) {
+      if (transcript) break;
       try {
-        const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Cookie": "CONSENT=PENDING+999",
-          },
-        });
-        const html = await pageRes.text();
-
-        // Try to get title from page if we don't have it
-        if (!title) {
-          const titleMatch = html.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-          if (titleMatch) {
-            try { title = JSON.parse(`"${titleMatch[1]}"`); } catch { title = titleMatch[1]; }
-          }
-        }
-
-        // Look for playerCaptionsTracklistRenderer in the page
-        const captionMatch = html.match(/"playerCaptionsTracklistRenderer"\s*:\s*\{[^}]*"captionTracks"\s*:\s*(\[[\s\S]*?\])/);
-        if (captionMatch) {
-          console.log("Found captionTracks in page HTML");
-          const tracks = JSON.parse(captionMatch[1]);
-          const track = tracks.find((t: any) => t.languageCode === "en") || tracks[0];
-          if (track?.baseUrl) {
-            const url = track.baseUrl.replace(/\\u0026/g, "&");
-            const captionRes = await fetch(url);
-            const xml = await captionRes.text();
+        const url = `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const xml = await res.text();
+          if (xml.includes("<text")) {
             transcript = parseXmlCaptions(xml);
+            console.log(`Got transcript via timedtext (${lang}), length: ${transcript.length}`);
           }
         }
       } catch (e) {
-        console.error("Page scrape fallback failed:", e);
+        console.error(`timedtext (${lang}) failed:`, e);
       }
     }
+
+    // Method 2: Try auto-generated captions
+    if (!transcript) {
+      try {
+        const url = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}&kind=asr`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const xml = await res.text();
+          if (xml.includes("<text")) {
+            transcript = parseXmlCaptions(xml);
+            console.log(`Got transcript via timedtext (asr), length: ${transcript.length}`);
+          }
+        }
+      } catch (e) {
+        console.error("timedtext (asr) failed:", e);
+      }
+    }
+
+    // Method 3: Try fetching caption list then getting the first available
+    if (!transcript) {
+      try {
+        const listUrl = `https://www.youtube.com/api/timedtext?type=list&v=${videoId}`;
+        const listRes = await fetch(listUrl);
+        if (listRes.ok) {
+          const listXml = await listRes.text();
+          console.log("Caption list response:", listXml.slice(0, 500));
+          // Parse available tracks
+          const trackMatches = listXml.matchAll(/lang_code="([^"]+)"/g);
+          for (const tm of trackMatches) {
+            if (transcript) break;
+            const langCode = tm[1];
+            const capUrl = `https://www.youtube.com/api/timedtext?lang=${langCode}&v=${videoId}`;
+            const capRes = await fetch(capUrl);
+            if (capRes.ok) {
+              const xml = await capRes.text();
+              if (xml.includes("<text")) {
+                transcript = parseXmlCaptions(xml);
+                console.log(`Got transcript via list (${langCode}), length: ${transcript.length}`);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Caption list failed:", e);
+      }
+    }
+
+    // Method 4: Innertube player API with WEB client
+    if (!transcript) {
+      try {
+        const playerRes = await fetch(
+          "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+            },
+            body: JSON.stringify({
+              context: {
+                client: {
+                  clientName: "ANDROID",
+                  clientVersion: "19.09.37",
+                  androidSdkVersion: 30,
+                  hl: "en",
+                  gl: "US",
+                },
+              },
+              videoId,
+            }),
+          }
+        );
+        const playerData = await playerRes.json();
+        const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+        console.log(`Innertube ANDROID tracks: ${tracks?.length || 0}`);
+        if (tracks?.length) {
+          const track = tracks.find((t: any) => t.languageCode === "en") || tracks[0];
+          if (track?.baseUrl) {
+            const capRes = await fetch(track.baseUrl);
+            const xml = await capRes.text();
+            if (xml.includes("<text")) {
+              transcript = parseXmlCaptions(xml);
+              console.log(`Got transcript via innertube, length: ${transcript.length}`);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Innertube failed:", e);
+      }
+    }
+
+    console.log(`Final result - title: "${title}", hasTranscript: ${!!transcript}, length: ${transcript.length}`);
 
     return new Response(
       JSON.stringify({
         transcript: transcript || null,
-        title: title || "YouTube Video",
+        title,
         hasTranscript: !!transcript,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
