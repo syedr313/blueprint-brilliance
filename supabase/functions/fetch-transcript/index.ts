@@ -13,11 +13,13 @@ async function fetchTranscriptFromPage(videoId: string): Promise<{ title: string
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept-Language": "en-US,en;q=0.9",
+      "Cookie": "CONSENT=YES+1",
     },
   });
   const html = await pageRes.text();
-
-  // Extract title
+  console.log("Page length:", html.length);
+  console.log("Has captionTracks:", html.includes("captionTracks"));
+  console.log("Has timedtext:", html.includes("timedtext"));
   let title = "";
   const titleMatch = html.match(/"title":"(.*?)"/);
   if (titleMatch) {
