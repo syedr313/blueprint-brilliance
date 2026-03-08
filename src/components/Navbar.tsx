@@ -1,10 +1,11 @@
 import { forwardRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, BookOpen, BarChart3, Trophy, User } from "lucide-react";
+import { Menu, X, BookOpen, BarChart3, Trophy, User, Youtube } from "lucide-react";
 
 const navItems = [
   { path: "/dashboard", label: "Learn", icon: BookOpen },
+  { path: "/youtube-learning", label: "YouTube", icon: Youtube },
   { path: "/analytics", label: "Progress", icon: BarChart3 },
   { path: "/achievements", label: "Achievements", icon: Trophy },
   { path: "/profile", label: "Profile", icon: User },
