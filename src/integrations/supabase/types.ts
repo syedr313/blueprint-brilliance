@@ -14,7 +14,282 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      study_session_videos: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          position: number
+          session_id: string
+          status: string
+          thumbnail_url: string | null
+          title: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          position?: number
+          session_id: string
+          status?: string
+          thumbnail_url?: string | null
+          title?: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          position?: number
+          session_id?: string
+          status?: string
+          thumbnail_url?: string | null
+          title?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_session_videos_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "study_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_sessions: {
+        Row: {
+          created_at: string
+          goal_days: number | null
+          goal_minutes_per_day: number | null
+          id: string
+          playlist_id: string | null
+          session_type: string
+          status: string
+          target_finish_date: string | null
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          goal_days?: number | null
+          goal_minutes_per_day?: number | null
+          id?: string
+          playlist_id?: string | null
+          session_type?: string
+          status?: string
+          target_finish_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          goal_days?: number | null
+          goal_minutes_per_day?: number | null
+          id?: string
+          playlist_id?: string | null
+          session_type?: string
+          status?: string
+          target_finish_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      transcript_quiz_attempts: {
+        Row: {
+          answers: Json
+          completed_at: string
+          id: string
+          quiz_id: string
+          score: number
+          total: number
+          user_id: string | null
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string
+          id?: string
+          quiz_id: string
+          score?: number
+          total?: number
+          user_id?: string | null
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string
+          id?: string
+          quiz_id?: string
+          score?: number
+          total?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_quiz_attempts_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "transcript_quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transcript_quizzes: {
+        Row: {
+          chunk_end_seconds: number | null
+          chunk_start_seconds: number | null
+          created_at: string
+          id: string
+          questions: Json
+          quiz_mode: string
+          video_id: string
+        }
+        Insert: {
+          chunk_end_seconds?: number | null
+          chunk_start_seconds?: number | null
+          created_at?: string
+          id?: string
+          questions?: Json
+          quiz_mode?: string
+          video_id: string
+        }
+        Update: {
+          chunk_end_seconds?: number | null
+          chunk_start_seconds?: number | null
+          created_at?: string
+          id?: string
+          questions?: Json
+          quiz_mode?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_quizzes_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "study_session_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transcript_segments: {
+        Row: {
+          created_at: string
+          duration_seconds: number
+          id: string
+          segment_index: number
+          start_seconds: number
+          text: string
+          track_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          segment_index?: number
+          start_seconds?: number
+          text?: string
+          track_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          segment_index?: number
+          start_seconds?: number
+          text?: string
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_segments_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "transcript_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transcript_tracks: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          language_code: string
+          track_kind: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          language_code?: string
+          track_kind?: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          language_code?: string
+          track_kind?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_tracks_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "study_session_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_watch_progress: {
+        Row: {
+          completed: boolean
+          current_time_seconds: number
+          duration_seconds: number
+          id: string
+          last_watched_at: string
+          percent_watched: number
+          user_id: string | null
+          video_id: string
+        }
+        Insert: {
+          completed?: boolean
+          current_time_seconds?: number
+          duration_seconds?: number
+          id?: string
+          last_watched_at?: string
+          percent_watched?: number
+          user_id?: string | null
+          video_id: string
+        }
+        Update: {
+          completed?: boolean
+          current_time_seconds?: number
+          duration_seconds?: number
+          id?: string
+          last_watched_at?: string
+          percent_watched?: number
+          user_id?: string | null
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_watch_progress_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "study_session_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
