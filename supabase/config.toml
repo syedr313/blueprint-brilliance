@@ -1,0 +1,7 @@
+project_id = "twfkfyahakmvnpsvqurf"
+
+[functions.generate-quiz]
+verify_jwt = false
+
+[functions.fetch-transcript]
+verify_jwt = false
