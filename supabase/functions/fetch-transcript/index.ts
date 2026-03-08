@@ -21,54 +21,65 @@ serve(async (req) => {
       );
     }
 
-    // Try to fetch captions from YouTube's timedtext API
-    // This works for videos with auto-generated or manual captions
-    const captionUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const pageResponse = await fetch(captionUrl, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
-    const pageHtml = await pageResponse.text();
+    // Step 1: Use Innertube player API to get caption track URLs
+    const playerResponse = await fetch(
+      "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: "WEB",
+              clientVersion: "2.20240101.00.00",
+            },
+          },
+          videoId,
+        }),
+      }
+    );
 
-    // Extract captions URL from the page
-    const captionTrackMatch = pageHtml.match(/"captionTracks":\s*(\[.*?\])/);
+    const playerData = await playerResponse.json();
+
+    const title =
+      playerData?.videoDetails?.title || "";
+
+    const captionTracks =
+      playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
     let transcript = "";
 
-    if (captionTrackMatch) {
-      try {
-        const tracks = JSON.parse(captionTrackMatch[1]);
-        const englishTrack =
-          tracks.find((t: any) => t.languageCode === "en") || tracks[0];
+    if (captionTracks && captionTracks.length > 0) {
+      // Prefer English, fallback to first track
+      const englishTrack =
+        captionTracks.find((t: any) => t.languageCode === "en") ||
+        captionTracks.find((t: any) => t.languageCode?.startsWith("en")) ||
+        captionTracks[0];
 
-        if (englishTrack?.baseUrl) {
-          const captionResponse = await fetch(englishTrack.baseUrl);
-          const captionXml = await captionResponse.text();
+      if (englishTrack?.baseUrl) {
+        // Fetch the XML captions
+        const captionRes = await fetch(englishTrack.baseUrl);
+        const captionXml = await captionRes.text();
 
-          // Parse XML captions to plain text
-          const textMatches = captionXml.matchAll(/<text[^>]*>(.*?)<\/text>/gs);
-          const segments: string[] = [];
-          for (const match of textMatches) {
-            const text = match[1]
-              .replace(/&amp;/g, "&")
-              .replace(/&lt;/g, "<")
-              .replace(/&gt;/g, ">")
-              .replace(/&quot;/g, '"')
-              .replace(/&#39;/g, "'")
-              .replace(/<[^>]*>/g, "");
-            segments.push(text);
-          }
-          transcript = segments.join(" ");
+        // Parse XML to plain text
+        const textMatches = captionXml.matchAll(
+          /<text start="([^"]*)" dur="([^"]*)"[^>]*>([\s\S]*?)<\/text>/g
+        );
+        const segments: string[] = [];
+        for (const match of textMatches) {
+          const text = match[3]
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/<[^>]*>/g, "")
+            .trim();
+          if (text) segments.push(text);
         }
-      } catch (e) {
-        console.error("Error parsing captions:", e);
+        transcript = segments.join(" ");
       }
     }
-
-    // Extract video title
-    const titleMatch = pageHtml.match(/<title>(.*?)<\/title>/);
-    const title = titleMatch
-      ? titleMatch[1].replace(" - YouTube", "").trim()
-      : "";
 
     return new Response(
       JSON.stringify({
