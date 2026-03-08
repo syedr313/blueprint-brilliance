@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, X, Send, Mic } from "lucide-react";
 
@@ -8,7 +8,7 @@ interface Message {
   isUser: boolean;
 }
 
-const AiTutor = () => {
+const AiTutor = forwardRef<HTMLButtonElement>((_, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: "Hi! I'm Lingua, your English learning assistant. Ask me anything about English! 🌟", isUser: false },
@@ -37,6 +37,7 @@ const AiTutor = () => {
     <>
       {/* Floating button */}
       <motion.button
+        ref={ref}
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 w-14 h-14 md:w-16 md:h-16 rounded-full gradient-secondary shadow-elevated flex items-center justify-center text-secondary-foreground"
         animate={{ scale: isOpen ? 1 : [1, 1.03, 1] }}
@@ -116,6 +117,8 @@ const AiTutor = () => {
       </AnimatePresence>
     </>
   );
-};
+});
+
+AiTutor.displayName = "AiTutor";
 
 export default AiTutor;

@@ -21,7 +21,7 @@ const LevelDetail = () => {
   const [gameComplete, setGameComplete] = useState(false);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
 
-  const gameUnlocked = videoProgress >= 80;
+  const gameUnlocked = true;
   const score = gameResult?.score ?? 0;
 
   const GameComponent = getGameComponent(levelId);
@@ -134,9 +134,9 @@ const LevelDetail = () => {
                     >
                       <Play className="w-8 h-8 text-primary-foreground ml-1" />
                     </div>
-                    <p className="text-muted-foreground text-sm">Click play to watch the lesson</p>
+                    <p className="text-muted-foreground text-sm">Watch the lesson or jump straight into the game</p>
                     <p className="text-xs text-muted-foreground/60 mt-1">
-                      (Click multiple times to simulate watching)
+                      (Video progress is optional now)
                     </p>
                   </div>
                 </div>
