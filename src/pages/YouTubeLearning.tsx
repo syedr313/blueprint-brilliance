@@ -16,6 +16,9 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  PanelRightOpen,
+  PanelRightClose,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,8 +28,8 @@ interface VideoEntry {
   videoId: string;
   title: string;
   transcript: string | null;
-  timeSpent: number; // seconds
-  progress: number; // 0-100
+  timeSpent: number;
+  progress: number;
   quizScores: { score: number; total: number; timestamp: number }[];
   addedAt: number;
 }
@@ -71,12 +74,10 @@ const YouTubeLearning = () => {
 
   const activeVideo = videos.find((v) => v.id === activeVideoId) || null;
 
-  // Persist
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(videos));
   }, [videos]);
 
-  // Time tracking
   useEffect(() => {
     if (activeVideoId) {
       timerRef.current = setInterval(() => {
@@ -148,6 +149,7 @@ const YouTubeLearning = () => {
     if (activeVideoId === id) {
       setActiveVideoId(null);
       setShowQuiz(false);
+      setShowTranscript(false);
     }
   };
 
@@ -203,7 +205,7 @@ const YouTubeLearning = () => {
     <div className="min-h-screen bg-background pb-20 md:pb-8">
       <Navbar />
 
-      <main className="container mx-auto px-4 pt-24 max-w-5xl">
+      <main className="container mx-auto px-4 pt-24 max-w-6xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -216,7 +218,7 @@ const YouTubeLearning = () => {
                 YouTube Learning Hub 🎬
               </h1>
               <p className="text-secondary-foreground/80 text-sm">
-                Add any YouTube video, watch it, get AI-powered quizzes, and track your progress
+                Add any YouTube video, watch & learn, then take AI-powered quizzes on the topic
               </p>
             </div>
             <div className="flex gap-3">
@@ -329,7 +331,6 @@ const YouTubeLearning = () => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                {/* Progress bar */}
                 <div className="h-1.5 bg-muted rounded-full mt-3 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-primary transition-all"
@@ -351,15 +352,51 @@ const YouTubeLearning = () => {
                   exit={{ opacity: 0 }}
                   className="space-y-4"
                 >
-                  {/* Embedded player */}
-                  <div className="aspect-video rounded-2xl overflow-hidden border border-border/50 shadow-card">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${activeVideo.videoId}?rel=0&modestbranding=1`}
-                      title={activeVideo.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="w-full h-full"
-                    />
+                  {/* Video + Transcript side by side */}
+                  <div className={`flex gap-4 ${showTranscript ? "flex-col xl:flex-row" : ""}`}>
+                    {/* Video player */}
+                    <div className={`${showTranscript ? "xl:flex-1" : "w-full"}`}>
+                      <div className="aspect-video rounded-2xl overflow-hidden border border-border/50 shadow-card">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${activeVideo.videoId}?rel=0&modestbranding=1`}
+                          title={activeVideo.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Transcript panel (side by side on xl, below on smaller) */}
+                    <AnimatePresence>
+                      {showTranscript && activeVideo.transcript && (
+                        <motion.div
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: "auto" }}
+                          exit={{ opacity: 0, width: 0 }}
+                          className="xl:w-80 xl:flex-shrink-0"
+                        >
+                          <div className="bg-card rounded-2xl border border-border/50 h-full flex flex-col" style={{ maxHeight: "400px" }}>
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
+                              <h3 className="font-display text-foreground text-sm flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-primary" /> Transcript
+                              </h3>
+                              <button
+                                onClick={() => setShowTranscript(false)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <PanelRightClose className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto px-4 py-3">
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {activeVideo.transcript}
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* Video info & controls */}
@@ -396,6 +433,16 @@ const YouTubeLearning = () => {
                       </p>
                     </div>
 
+                    {/* Info about transcript */}
+                    {!activeVideo.transcript && (
+                      <div className="flex items-start gap-2 mb-4 bg-muted/50 rounded-lg p-3">
+                        <AlertCircle className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                          Transcript not available for this video. Quizzes will be generated based on the video topic using AI.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Action buttons */}
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -410,43 +457,33 @@ const YouTubeLearning = () => {
                         )}
                         Take Quiz
                       </button>
-                      {activeVideo.transcript && (
+                      {activeVideo.transcript ? (
                         <button
                           onClick={() => setShowTranscript(!showTranscript)}
-                          className="bg-muted text-foreground px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-muted/80 transition-colors flex items-center gap-2"
+                          className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
+                            showTranscript
+                              ? "bg-primary/10 text-primary border border-primary/30"
+                              : "bg-muted text-foreground hover:bg-muted/80"
+                          }`}
+                        >
+                          {showTranscript ? (
+                            <PanelRightClose className="w-4 h-4" />
+                          ) : (
+                            <PanelRightOpen className="w-4 h-4" />
+                          )}
+                          Transcript
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="bg-muted/50 text-muted-foreground px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 cursor-not-allowed opacity-50"
                         >
                           <FileText className="w-4 h-4" />
-                          Transcript
-                          {showTranscript ? (
-                            <ChevronUp className="w-3 h-3" />
-                          ) : (
-                            <ChevronDown className="w-3 h-3" />
-                          )}
+                          No Transcript
                         </button>
                       )}
                     </div>
                   </div>
-
-                  {/* Transcript */}
-                  <AnimatePresence>
-                    {showTranscript && activeVideo.transcript && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="bg-card rounded-2xl p-5 border border-border/50 max-h-80 overflow-y-auto">
-                          <h3 className="font-display text-foreground mb-3 flex items-center gap-2">
-                            <FileText className="w-4 h-4" /> Transcript
-                          </h3>
-                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                            {activeVideo.transcript}
-                          </p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
 
                   {/* Quiz */}
                   <AnimatePresence>

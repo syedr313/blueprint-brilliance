@@ -19,9 +19,12 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a quiz generator that creates questions STRICTLY based on the actual content discussed in a video. You must ONLY ask about specific facts, concepts, examples, and explanations that were explicitly mentioned in the provided transcript. Do NOT ask generic or textbook questions about the topic — every question must be answerable ONLY by someone who watched this specific video.
+    const hasTranscript = !!transcript && transcript.trim().length > 50;
 
-Return ONLY valid JSON in this exact format:
+    const systemPrompt = hasTranscript
+      ? `You are a quiz generator. Create exactly 5 multiple-choice questions based STRICTLY on the content discussed in the provided video transcript. Every question MUST be about specific facts, concepts, examples, or explanations explicitly mentioned in the transcript. Do NOT create generic textbook questions — only test what was actually said in this video.
+
+Return ONLY valid JSON:
 {
   "questions": [
     {
@@ -31,17 +34,37 @@ Return ONLY valid JSON in this exact format:
       "explanation": "Brief explanation referencing what was said in the video"
     }
   ]
+}`
+      : `You are a quiz generator. The user is watching a video titled "${videoTitle}". Based on this title, determine the EXACT topic and create 5 detailed, specific multiple-choice questions about that subject matter.
+
+For example:
+- If the title mentions "Python", create questions about Python programming concepts (variables, loops, functions, data types, etc.)
+- If it mentions "Machine Learning", ask about ML concepts
+- If it mentions a specific framework or tool, ask about that
+
+Questions must be educational, specific to the topic, and test real knowledge. Do NOT ask about YouTube, video production, or generic questions.
+
+Return ONLY valid JSON:
+{
+  "questions": [
+    {
+      "question": "What is...?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0,
+      "explanation": "Clear explanation of the correct answer"
+    }
+  ]
 }`;
 
-    const userPrompt = transcript
+    const userPrompt = hasTranscript
       ? `Here is the transcript of a video titled "${videoTitle || "Unknown"}":
-${timeRange ? `(Covering time range: ${timeRange})\n` : ""}
+${timeRange ? `(Time range: ${timeRange})\n` : ""}
 ---
 ${transcript.slice(0, 12000)}
 ---
 
-Based ONLY on what is discussed in this transcript, generate exactly 5 multiple-choice questions. Each question must reference specific points, examples, definitions, or explanations from the transcript. Do not include any questions that could be answered without watching this video.`
-      : `The video is titled "${videoTitle || "Unknown"}" but no transcript is available. Generate 5 questions specifically about what a video with this title would likely cover. Make the questions focused on the specific topic, not generic knowledge. Clearly state in explanations that these are inferred from the title.`;
+Create 5 quiz questions based ONLY on what is discussed in this transcript.`
+      : `Create 5 knowledge-testing quiz questions specifically about the topic of this video: "${videoTitle}". The questions should test real understanding of the subject matter covered in a video with this title. Make them educational and specific — not generic.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -82,7 +105,6 @@ Based ONLY on what is discussed in this transcript, generate exactly 5 multiple-
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    // Extract JSON from the response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error("Failed to parse quiz from AI response");
