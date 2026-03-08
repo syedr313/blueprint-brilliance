@@ -19,7 +19,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a quiz generator for educational video content. Generate exactly 5 multiple-choice questions based on the provided video content. Each question should test comprehension of key concepts.
+    const systemPrompt = `You are a quiz generator that creates questions STRICTLY based on the actual content discussed in a video. You must ONLY ask about specific facts, concepts, examples, and explanations that were explicitly mentioned in the provided transcript. Do NOT ask generic or textbook questions about the topic — every question must be answerable ONLY by someone who watched this specific video.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -28,18 +28,20 @@ Return ONLY valid JSON in this exact format:
       "question": "What is...?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctIndex": 0,
-      "explanation": "Brief explanation of why this is correct"
+      "explanation": "Brief explanation referencing what was said in the video"
     }
   ]
 }`;
 
-    const userPrompt = `Generate a quiz based on this video content:
+    const userPrompt = transcript
+      ? `Here is the transcript of a video titled "${videoTitle || "Unknown"}":
+${timeRange ? `(Covering time range: ${timeRange})\n` : ""}
+---
+${transcript.slice(0, 12000)}
+---
 
-Video Title: ${videoTitle || "Unknown"}
-${timeRange ? `Time Range: ${timeRange}` : ""}
-${transcript ? `Transcript/Content:\n${transcript.slice(0, 8000)}` : `Generate general knowledge questions about the topic: "${videoTitle}"`}
-
-Generate 5 challenging but fair multiple-choice questions.`;
+Based ONLY on what is discussed in this transcript, generate exactly 5 multiple-choice questions. Each question must reference specific points, examples, definitions, or explanations from the transcript. Do not include any questions that could be answered without watching this video.`
+      : `The video is titled "${videoTitle || "Unknown"}" but no transcript is available. Generate 5 questions specifically about what a video with this title would likely cover. Make the questions focused on the specific topic, not generic knowledge. Clearly state in explanations that these are inferred from the title.`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
