@@ -50,7 +50,7 @@ export const levels: Level[] = levelTitles.map((title, i) => ({
   description: `Level ${i + 1} of the Lingual Quest journey`,
   module: Math.floor(i / 10) + 1,
   moduleName: moduleNames[Math.floor(i / 10)],
-  isLocked: i > 2, // First 3 levels unlocked for demo
+  isLocked: false,
   bestScore: i === 0 ? 92 : i === 1 ? 85 : i === 2 ? null : null,
   stars: i === 0 ? 3 : i === 1 ? 2 : 0,
   videoUrl: "",
