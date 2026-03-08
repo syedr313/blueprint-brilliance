@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, BookOpen, BarChart3, Trophy, User } from "lucide-react";
@@ -10,13 +10,13 @@ const navItems = [
   { path: "/profile", label: "Profile", icon: User },
 ];
 
-const Navbar = () => {
+const Navbar = forwardRef<HTMLElement>((_, ref) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
+      <nav ref={ref} className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto flex items-center justify-between h-16 px-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center">
@@ -129,6 +129,8 @@ const Navbar = () => {
       </div>
     </>
   );
-};
+});
+
+Navbar.displayName = "Navbar";
 
 export default Navbar;

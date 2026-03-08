@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Lock, Star, Play, RotateCcw } from "lucide-react";
@@ -9,13 +10,14 @@ interface LevelCardProps {
   index: number;
 }
 
-const LevelCard = ({ level, index }: LevelCardProps) => {
+const LevelCard = forwardRef<HTMLDivElement, LevelCardProps>(({ level, index }, ref) => {
   const colors = moduleColors[level.module - 1];
   const isCompleted = level.bestScore !== null;
   const canPlay = !level.isLocked;
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.03 }}
@@ -92,6 +94,8 @@ const LevelCard = ({ level, index }: LevelCardProps) => {
       </Link>
     </motion.div>
   );
-};
+});
+
+LevelCard.displayName = "LevelCard";
 
 export default LevelCard;
